@@ -1,36 +1,98 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# NutrixOS
 
-## Getting Started
+An AI nutrition copilot. You say what you ate in your own words; it handles the
+structuring, the maths, and the coaching.
 
-First, run the development server:
+The product bet is that the search-and-select flow every calorie tracker uses is
+the reason people quit. So there is no food database to search here — there is a
+text box, and a review step that shows you exactly what was assumed before
+anything lands in your day.
 
 ```bash
+npm install
+cp .env.example .env.local   # optional — the app runs without any keys
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Where things live
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```
+src/
+  core/nutrition/   Targets engine. Pure functions, no React, no network.
+  core/ai/          Copilot contract, Claude implementation, and mock.
+  components/       UI, grouped by surface (onboarding, today, logging).
+  lib/              Design-system motion tokens, app state.
+supabase/
+  migrations/       Schema, RLS policies.
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Three boundaries do most of the architectural work:
 
-## Learn More
+**`core/nutrition` knows nothing about React or the network.** BMR, TDEE, macro
+derivation, projection, and adaptation are pure functions of their inputs, which
+is why they can be exhaustively unit-tested (`npm test`) without mounting
+anything or mocking a request.
 
-To learn more about Next.js, take a look at the following resources:
+**`core/ai` is an interface first.** The UI depends on `NutritionCopilot`, never
+on a model provider. That is what lets the app ship complete and usable before
+an API key exists — see below.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+**The design system is token-driven.** Every colour, radius, shadow, and easing
+curve resolves to a CSS custom property in `globals.css`. Light and dark are
+both defined from the same token names, so nothing downstream branches on theme.
+Motion is a fixed vocabulary of named springs in `lib/motion.ts` rather than a
+per-component decision.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Running without an API key
 
-## Deploy on Vercel
+`getCopilot()` returns the Claude implementation when `ANTHROPIC_API_KEY` is
+set, and a mock otherwise. The mock is not a stub returning a fixed blob — it
+matches real foods, parses quantities ("3 eggs" → 3 × 72 kcal), infers the meal
+slot from the clock, simulates latency so loading states get exercised, and
+reports honest confidence.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+That means local development, previews, and CI all work with no credentials, and
+turning on real inference is an env var, not a refactor.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Models
+
+Selection is per task, not global:
+
+| Task | Model | Why |
+|---|---|---|
+| Meal parsing | `claude-haiku-4-5` | Bounded extraction in the logging path, where latency *is* the product |
+| Photo estimation | `claude-opus-5` | Judging portion size from a photo is genuinely hard |
+| Daily coaching | `claude-opus-5` | Reading a day's numbers into one useful sentence |
+
+Every call constrains generation with `output_config.format`, so the model
+cannot emit a shape the app can't read. Responses are still validated with Zod
+at the boundary — constrained generation guarantees the shape, not the
+semantics, and a bad value should fail loudly rather than flow into the targets
+engine as `NaN`.
+
+## The estimates are honest, deliberately
+
+Every parsed meal carries per-item confidence and a list of assumptions in plain
+language ("Assumed cooked weight", "Assumed whole milk"). If an input is too
+vague to estimate responsibly, the copilot asks a question instead of inventing
+numbers to fill the schema.
+
+This is a product decision, not a limitation. An estimate that hides its
+uncertainty is worse than one that shows it.
+
+## Safety constraints
+
+The coaching prompt forbids commentary on body weight, appearance, or moral
+worth, and forbids the language of guilt, reward, or "earning" food. Calorie
+targets are floored at 1200 (F) / 1500 (M) regardless of what the goal maths
+produces, and dietary fat is floored at 0.6 g/kg. A target that goes below those
+is not a plan.
+
+## Commands
+
+```bash
+npm run dev     # dev server
+npm test        # targets engine unit tests
+npm run lint    # eslint
+npm run build   # production build
+```

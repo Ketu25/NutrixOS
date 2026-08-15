@@ -1,26 +1,312 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/* ============================================================================
+   NutrixOS design tokens
+   ----------------------------------------------------------------------------
+   One system, two themes. Light and dark are equal citizens: every semantic
+   token is defined once per theme and consumed everywhere by name. Components
+   never reference a raw color, radius, shadow, or easing curve.
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+   Colors are authored in OKLCH so that every macro channel shares the same
+   perceptual lightness and chroma and differs only in hue. That is what makes
+   five different ring colors read as one family instead of five decisions.
+   ========================================================================== */
 
-@media (prefers-color-scheme: dark) {
+@layer base {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    color-scheme: light;
+
+    /* -- Surfaces: canvas is the page, tiers stack toward the viewer -------- */
+    --canvas: oklch(0.985 0.005 95);
+    --surface-1: oklch(1 0 0);
+    --surface-2: oklch(0.975 0.006 95);
+    --surface-3: oklch(0.955 0.008 95);
+    --surface-inset: oklch(0.955 0.006 95);
+
+    /* Translucent layer for frosted overlays (sheets, sticky bars) */
+    --scrim: oklch(1 0 0 / 0.72);
+    --scrim-strong: oklch(1 0 0 / 0.9);
+    --backdrop: oklch(0.2 0.02 95 / 0.32);
+
+    /* -- Hairlines and dividers -------------------------------------------- */
+    --line: oklch(0.9 0.006 95);
+    --line-strong: oklch(0.84 0.008 95);
+
+    /* -- Text: a three-step hierarchy, plus inverse for filled surfaces ----- */
+    --text-primary: oklch(0.22 0.015 95);
+    --text-secondary: oklch(0.48 0.012 95);
+    --text-tertiary: oklch(0.63 0.01 95);
+    --text-inverse: oklch(0.99 0 0);
+
+    /* -- Brand accent ------------------------------------------------------- */
+    --accent: oklch(0.62 0.19 35);
+    --accent-hover: oklch(0.57 0.2 35);
+    --accent-soft: oklch(0.95 0.04 35);
+    --accent-ring: oklch(0.62 0.19 35 / 0.35);
+    --on-accent: oklch(0.99 0 0);
+
+    /* -- Macro channels ----------------------------------------------------- */
+    /* Same L and C, hue is the only variable. Five hues, one family.         */
+    --energy: oklch(0.63 0.18 35);
+    --energy-soft: oklch(0.95 0.04 35);
+    --protein: oklch(0.63 0.18 285);
+    --protein-soft: oklch(0.95 0.04 285);
+    --carbs: oklch(0.63 0.18 70);
+    --carbs-soft: oklch(0.95 0.04 70);
+    --fat: oklch(0.63 0.18 230);
+    --fat-soft: oklch(0.95 0.04 230);
+    --fiber: oklch(0.63 0.18 155);
+    --fiber-soft: oklch(0.95 0.04 155);
+
+    /* Neutral track the rings are drawn on top of */
+    --track: oklch(0.92 0.006 95);
+
+    /* -- Semantic state ----------------------------------------------------- */
+    --success: oklch(0.6 0.16 155);
+    --success-soft: oklch(0.95 0.04 155);
+    --warn: oklch(0.68 0.16 75);
+    --warn-soft: oklch(0.96 0.05 75);
+    --danger: oklch(0.58 0.2 25);
+    --danger-soft: oklch(0.95 0.04 25);
+
+    /* -- Elevation ---------------------------------------------------------- */
+    --shadow-sm: 0 1px 2px oklch(0.2 0.02 95 / 0.06);
+    --shadow-md:
+      0 2px 4px oklch(0.2 0.02 95 / 0.05), 0 8px 16px oklch(0.2 0.02 95 / 0.07);
+    --shadow-lg:
+      0 4px 8px oklch(0.2 0.02 95 / 0.05), 0 16px 32px oklch(0.2 0.02 95 / 0.1);
+    --shadow-glow: 0 0 0 transparent;
+  }
+
+  /* Dark by OS preference, unless the user has explicitly chosen light. */
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+
+      --canvas: oklch(0.16 0.008 265);
+      --surface-1: oklch(0.2 0.01 265);
+      --surface-2: oklch(0.235 0.012 265);
+      --surface-3: oklch(0.27 0.014 265);
+      --surface-inset: oklch(0.185 0.01 265);
+
+      --scrim: oklch(0.2 0.01 265 / 0.72);
+      --scrim-strong: oklch(0.2 0.01 265 / 0.92);
+      --backdrop: oklch(0.1 0.01 265 / 0.6);
+
+      --line: oklch(0.32 0.012 265);
+      --line-strong: oklch(0.4 0.014 265);
+
+      --text-primary: oklch(0.97 0.004 265);
+      --text-secondary: oklch(0.76 0.012 265);
+      --text-tertiary: oklch(0.6 0.012 265);
+      --text-inverse: oklch(0.18 0.01 265);
+
+      --accent: oklch(0.74 0.17 40);
+      --accent-hover: oklch(0.79 0.16 40);
+      --accent-soft: oklch(0.3 0.06 40);
+      --accent-ring: oklch(0.74 0.17 40 / 0.4);
+      --on-accent: oklch(0.18 0.01 265);
+
+      /* Channels lift in lightness so they stay vivid against a dark canvas */
+      --energy: oklch(0.75 0.16 40);
+      --energy-soft: oklch(0.3 0.05 40);
+      --protein: oklch(0.75 0.16 285);
+      --protein-soft: oklch(0.3 0.05 285);
+      --carbs: oklch(0.79 0.15 75);
+      --carbs-soft: oklch(0.32 0.05 75);
+      --fat: oklch(0.75 0.15 230);
+      --fat-soft: oklch(0.3 0.05 230);
+      --fiber: oklch(0.76 0.15 155);
+      --fiber-soft: oklch(0.3 0.05 155);
+
+      --track: oklch(0.28 0.012 265);
+
+      --success: oklch(0.74 0.15 155);
+      --success-soft: oklch(0.3 0.05 155);
+      --warn: oklch(0.8 0.14 80);
+      --warn-soft: oklch(0.32 0.05 80);
+      --danger: oklch(0.7 0.17 25);
+      --danger-soft: oklch(0.3 0.06 25);
+
+      --shadow-sm: 0 1px 2px oklch(0 0 0 / 0.3);
+      --shadow-md: 0 2px 4px oklch(0 0 0 / 0.3), 0 8px 16px oklch(0 0 0 / 0.36);
+      --shadow-lg: 0 4px 8px oklch(0 0 0 / 0.3), 0 16px 32px oklch(0 0 0 / 0.44);
+    }
+  }
+
+  /* Explicit opt-in beats the media query in both directions. */
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+
+    --canvas: oklch(0.16 0.008 265);
+    --surface-1: oklch(0.2 0.01 265);
+    --surface-2: oklch(0.235 0.012 265);
+    --surface-3: oklch(0.27 0.014 265);
+    --surface-inset: oklch(0.185 0.01 265);
+
+    --scrim: oklch(0.2 0.01 265 / 0.72);
+    --scrim-strong: oklch(0.2 0.01 265 / 0.92);
+    --backdrop: oklch(0.1 0.01 265 / 0.6);
+
+    --line: oklch(0.32 0.012 265);
+    --line-strong: oklch(0.4 0.014 265);
+
+    --text-primary: oklch(0.97 0.004 265);
+    --text-secondary: oklch(0.76 0.012 265);
+    --text-tertiary: oklch(0.6 0.012 265);
+    --text-inverse: oklch(0.18 0.01 265);
+
+    --accent: oklch(0.74 0.17 40);
+    --accent-hover: oklch(0.79 0.16 40);
+    --accent-soft: oklch(0.3 0.06 40);
+    --accent-ring: oklch(0.74 0.17 40 / 0.4);
+    --on-accent: oklch(0.18 0.01 265);
+
+    --energy: oklch(0.75 0.16 40);
+    --energy-soft: oklch(0.3 0.05 40);
+    --protein: oklch(0.75 0.16 285);
+    --protein-soft: oklch(0.3 0.05 285);
+    --carbs: oklch(0.79 0.15 75);
+    --carbs-soft: oklch(0.32 0.05 75);
+    --fat: oklch(0.75 0.15 230);
+    --fat-soft: oklch(0.3 0.05 230);
+    --fiber: oklch(0.76 0.15 155);
+    --fiber-soft: oklch(0.3 0.05 155);
+
+    --track: oklch(0.28 0.012 265);
+
+    --success: oklch(0.74 0.15 155);
+    --success-soft: oklch(0.3 0.05 155);
+    --warn: oklch(0.8 0.14 80);
+    --warn-soft: oklch(0.32 0.05 80);
+    --danger: oklch(0.7 0.17 25);
+    --danger-soft: oklch(0.3 0.06 25);
+
+    --shadow-sm: 0 1px 2px oklch(0 0 0 / 0.3);
+    --shadow-md: 0 2px 4px oklch(0 0 0 / 0.3), 0 8px 16px oklch(0 0 0 / 0.36);
+    --shadow-lg: 0 4px 8px oklch(0 0 0 / 0.3), 0 16px 32px oklch(0 0 0 / 0.44);
+  }
+
+  :root[data-theme="light"] {
+    color-scheme: light;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* ----------------------------------------------------------------------------
+   Expose tokens to Tailwind so `bg-surface-1`, `text-secondary`,
+   `stroke-protein`, `rounded-card` etc. all resolve to the same source values.
+   -------------------------------------------------------------------------- */
+@theme inline {
+  --color-canvas: var(--canvas);
+  --color-surface-1: var(--surface-1);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-surface-inset: var(--surface-inset);
+  --color-scrim: var(--scrim);
+  --color-scrim-strong: var(--scrim-strong);
+  --color-backdrop: var(--backdrop);
+
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+
+  --color-primary: var(--text-primary);
+  --color-secondary: var(--text-secondary);
+  --color-tertiary: var(--text-tertiary);
+  --color-inverse: var(--text-inverse);
+
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-soft: var(--accent-soft);
+  --color-on-accent: var(--on-accent);
+
+  --color-energy: var(--energy);
+  --color-energy-soft: var(--energy-soft);
+  --color-protein: var(--protein);
+  --color-protein-soft: var(--protein-soft);
+  --color-carbs: var(--carbs);
+  --color-carbs-soft: var(--carbs-soft);
+  --color-fat: var(--fat);
+  --color-fat-soft: var(--fat-soft);
+  --color-fiber: var(--fiber);
+  --color-fiber-soft: var(--fiber-soft);
+  --color-track: var(--track);
+
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+
+  --radius-field: 0.75rem;
+  --radius-card: 1.25rem;
+  --radius-sheet: 1.75rem;
+  --radius-pill: 999px;
+
+  --shadow-sm: var(--shadow-sm);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
+
+  --font-sans: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-mono), ui-monospace, monospace;
+}
+
+@layer base {
+  * {
+    border-color: var(--line);
+  }
+
+  html {
+    /* Lock the app to its own scroll container; the shell handles overflow. */
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    background: var(--canvas);
+    color: var(--text-primary);
+    font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    overscroll-behavior-y: none;
+  }
+
+  /* Tabular figures everywhere a number animates, so digits don't jitter. */
+  .tnum {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: var(--radius-field);
+  }
+
+  /* Respect the OS setting. Motion is expressive here, so this matters. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+/* Frosted panel used by sticky headers, tab bars, and sheets. */
+.frost {
+  background: var(--scrim);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+}
+
+/* Hide scrollbars on horizontal rails without losing scrollability. */
+.rail {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.rail::-webkit-scrollbar {
+  display: none;
 }
