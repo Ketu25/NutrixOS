@@ -1,6 +1,6 @@
 "use client";
 
-import type { Session, SupabaseClient, User } from "@supabase/supabase-js";
+import type { AuthError, Session, SupabaseClient, User } from "@supabase/supabase-js";
 import {
   createContext,
   useCallback,
@@ -103,7 +103,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Supabase deliberately returns the same message for a wrong password
       // and a non-existent account, so an attacker cannot enumerate users.
       // Pass it through rather than trying to be more specific.
-      return { error: friendlyAuthError(error.message) };
+      return { error: friendlyAuthError(error) };
     },
     [supabase],
   );
@@ -120,7 +120,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         },
       });
 
-      if (error) return { error: friendlyAuthError(error.message) };
+      if (error) return { error: friendlyAuthError(error) };
 
       // With email confirmation enabled, signUp returns a user but no session.
       // The caller shows a "check your inbox" state rather than assuming the
@@ -146,7 +146,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
       });
 
-      return error ? { error: friendlyAuthError(error.message) } : {};
+      return error ? { error: friendlyAuthError(error) } : {};
     },
     [supabase],
   );
@@ -171,25 +171,49 @@ export function useAuth() {
   return ctx;
 }
 
-/** Turns Supabase's terse messages into something a person can act on. */
-function friendlyAuthError(message: string): string {
-  const normalised = message.toLowerCase();
+/**
+ * Turns Supabase's terse errors into something a person can act on.
+ *
+ * Matches on `error.code` — Supabase's stable, structured error code — rather
+ * than on the message text, which is prose and can change.
+ *
+ * The distinction that matters most here is between the two kinds of "rate
+ * limit". `over_request_rate_limit` really is the caller going too fast.
+ * `over_email_send_rate_limit` is a project-wide cap on the built-in email
+ * sender — the person signing up did nothing wrong, and it is not their
+ * problem to wait out. Reporting the second as "too many attempts" blames the
+ * user for an operator-side quota and points them at a fix that does not exist.
+ */
+function friendlyAuthError(error: AuthError): string {
+  switch (error.code) {
+    case "invalid_credentials":
+      return "That email and password don't match an account.";
+    case "email_not_confirmed":
+      return "Confirm your email first — check your inbox for the link.";
+    case "user_already_exists":
+    case "email_exists":
+      return "An account with that email already exists. Try signing in.";
+    case "weak_password":
+      return "Password must be at least 6 characters.";
+    case "over_email_send_rate_limit":
+      return "Sign-up email couldn't be sent — this project's email quota is used up. It resets hourly; configuring your own SMTP removes the limit.";
+    case "over_request_rate_limit":
+      return "Too many attempts. Wait a minute and try again.";
+    case "signup_disabled":
+      return "New sign-ups are disabled for this project.";
+    case "validation_failed":
+      return "Check the email address and try again.";
+  }
 
+  // Fall back to message matching for older responses that predate error
+  // codes, then to the raw message so nothing is swallowed silently.
+  const normalised = error.message.toLowerCase();
+  if (normalised.includes("email rate limit")) {
+    return "Sign-up email couldn't be sent — this project's email quota is used up. It resets hourly; configuring your own SMTP removes the limit.";
+  }
   if (normalised.includes("invalid login credentials")) {
     return "That email and password don't match an account.";
   }
-  if (normalised.includes("email not confirmed")) {
-    return "Confirm your email first — check your inbox for the link.";
-  }
-  if (normalised.includes("already registered")) {
-    return "An account with that email already exists. Try signing in.";
-  }
-  if (normalised.includes("password should be")) {
-    return "Password must be at least 6 characters.";
-  }
-  if (normalised.includes("rate limit") || normalised.includes("too many")) {
-    return "Too many attempts. Wait a minute and try again.";
-  }
 
-  return message;
+  return error.message;
 }
