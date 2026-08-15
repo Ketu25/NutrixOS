@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Database } from "./types";
+import type { Database, Json } from "./types";
 import type {
   Goal,
   LogEntry,
@@ -76,7 +76,7 @@ export async function loadAccount(
       type: goalRow.type,
       pace: goalRow.pace,
       targetWeightKg: goalRow.target_weight_kg ?? undefined,
-      customTargets: goalRow.custom_targets ?? undefined,
+      customTargets: parseCustomTargets(goalRow.custom_targets),
     },
     targets: {
       calories: targetRow.calories,
@@ -166,9 +166,9 @@ export async function loadEntriesForDay(
   if (error) throw error;
 
   return (data ?? []).map((row) => {
-    const items = (
-      row as typeof row & { entry_items: Database["public"]["Tables"]["entry_items"]["Row"][] }
-    ).entry_items;
+    // No cast needed: the generated types carry the entry_items foreign key,
+    // so the client infers the embedded rows from the select string itself.
+    const items = row.entry_items;
 
     return {
       id: row.id,
@@ -270,6 +270,31 @@ export async function recordWeight(
       { onConflict: "user_id,measured_on" },
     );
   if (error) throw error;
+}
+
+/**
+ * Narrow the `custom_targets` jsonb column to the domain shape.
+ *
+ * The column is `jsonb`, so Postgres will happily store a string, an array, or
+ * an object full of nonsense. Casting it straight to `Partial<NutritionTargets>`
+ * would put a `string` where the targets engine expects a number and surface as
+ * NaN several layers away. Keep only the known channels with finite numeric
+ * values, and drop the rest.
+ */
+function parseCustomTargets(value: Json | null): Partial<NutritionTargets> | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+
+  const channels = ["calories", "protein", "carbs", "fat", "fiber", "water"] as const;
+  const parsed: Partial<NutritionTargets> = {};
+
+  for (const channel of channels) {
+    const candidate = (value as Record<string, unknown>)[channel];
+    if (typeof candidate === "number" && Number.isFinite(candidate)) {
+      parsed[channel] = candidate;
+    }
+  }
+
+  return Object.keys(parsed).length > 0 ? parsed : undefined;
 }
 
 /* -- date helpers ----------------------------------------------------------- */
