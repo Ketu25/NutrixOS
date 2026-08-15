@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { CopilotRefusalError, CopilotResponseError, getCopilot } from "@/core/ai";
+import { requireUser } from "@/lib/auth/requireUser";
 
 /* ============================================================================
    POST /api/copilot/parse
@@ -60,6 +61,10 @@ const bodySchema = z.object({
 });
 
 export async function POST(request: Request) {
+  // Before anything else: this route spends money on every call.
+  const gate = await requireUser();
+  if (gate.response) return gate.response;
+
   let body: z.infer<typeof bodySchema>;
 
   try {

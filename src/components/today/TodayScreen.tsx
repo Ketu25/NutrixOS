@@ -1,8 +1,9 @@
 "use client";
 
-import { motion } from "motion/react";
-import { Moon, Plus, Sun, TrendingUp } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
+import { LogOut, Moon, Plus, Sun, TrendingUp, X } from "lucide-react";
 import { useMemo, useState } from "react";
+import { useAuth } from "@/lib/auth/AuthProvider";
 import { RingCluster } from "./RingCluster";
 import { InsightCard } from "./InsightCard";
 import { EntryTimeline } from "./EntryTimeline";
@@ -20,9 +21,20 @@ import type { CopilotContext } from "@/core/ai/types";
 const WINDOW_START_HOUR = 7;
 
 export function TodayScreen() {
-  const { profile, goal, targets, todayEntries, todayTotals, addEntry, removeEntry } =
-    useStore();
+  const {
+    profile,
+    goal,
+    targets,
+    todayEntries,
+    todayTotals,
+    addEntry,
+    removeEntry,
+    error,
+    dismissError,
+    isRemote,
+  } = useStore();
   const { resolved, toggle } = useTheme();
+  const { user, signOut } = useAuth();
   const [logOpen, setLogOpen] = useState(false);
 
   const context = useMemo<CopilotContext | null>(() => {
@@ -68,25 +80,69 @@ export function TodayScreen() {
             <h1 className="text-lg font-semibold tracking-tight">{greeting}</h1>
           </div>
 
-          <motion.button
-            type="button"
-            aria-label={`Switch to ${resolved === "dark" ? "light" : "dark"} theme`}
-            onClick={toggle}
-            whileTap={{ scale: 0.9, rotate: -20 }}
-            transition={springSnappy}
-            className="flex size-9 items-center justify-center rounded-full bg-surface-2 text-secondary hover:text-primary"
-          >
-            <motion.span
-              key={resolved}
-              initial={{ scale: 0.6, opacity: 0, rotate: -45 }}
-              animate={{ scale: 1, opacity: 1, rotate: 0 }}
-              transition={spring}
+          <div className="flex items-center gap-1.5">
+            <motion.button
+              type="button"
+              aria-label={`Switch to ${resolved === "dark" ? "light" : "dark"} theme`}
+              onClick={toggle}
+              whileTap={{ scale: 0.9, rotate: -20 }}
+              transition={springSnappy}
+              className="flex size-9 items-center justify-center rounded-full bg-surface-2 text-secondary hover:text-primary"
             >
-              {resolved === "dark" ? <Sun size={16} /> : <Moon size={16} />}
-            </motion.span>
-          </motion.button>
+              <motion.span
+                key={resolved}
+                initial={{ scale: 0.6, opacity: 0, rotate: -45 }}
+                animate={{ scale: 1, opacity: 1, rotate: 0 }}
+                transition={spring}
+              >
+                {resolved === "dark" ? <Sun size={16} /> : <Moon size={16} />}
+              </motion.span>
+            </motion.button>
+
+            {isRemote && (
+              <motion.button
+                type="button"
+                aria-label={`Sign out${user?.email ? ` (${user.email})` : ""}`}
+                title={user?.email ?? undefined}
+                onClick={signOut}
+                whileTap={{ scale: 0.9 }}
+                transition={springSnappy}
+                className="flex size-9 items-center justify-center rounded-full bg-surface-2 text-secondary hover:text-primary"
+              >
+                <LogOut size={15} />
+              </motion.button>
+            )}
+          </div>
         </div>
       </header>
+
+      {/* Write failures surface here. The optimistic update has already been
+          rolled back by the time this renders, so the number the user sees is
+          always the number that is actually saved. */}
+      <AnimatePresence>
+        {error && (
+          <motion.div
+            initial={{ opacity: 0, y: -12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -12 }}
+            transition={spring}
+            role="alert"
+            className="sticky top-[4.5rem] z-30 mx-auto w-full max-w-[32rem] px-5"
+          >
+            <div className="flex items-start gap-3 rounded-card border border-danger/40 bg-danger-soft p-3.5">
+              <p className="flex-1 text-sm text-danger">{error}</p>
+              <button
+                type="button"
+                aria-label="Dismiss"
+                onClick={dismissError}
+                className="text-danger/70 hover:text-danger"
+              >
+                <X size={15} />
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <main className="mx-auto w-full max-w-[32rem] flex-1 px-5 pb-32">
         <Stagger className="space-y-5 pt-4" gap={0.09}>

@@ -43,6 +43,35 @@ both defined from the same token names, so nothing downstream branches on theme.
 Motion is a fixed vocabulary of named springs in `lib/motion.ts` rather than a
 per-component decision.
 
+## Accounts and data ownership
+
+Email and password via Supabase Auth. Every row is owned by a user and every
+table has RLS keyed to `auth.uid()`, so isolation is enforced by Postgres
+rather than by remembering to add a `where user_id = ?` in application code.
+The repository deliberately contains **no** `user_id` filters for that reason —
+a client-side filter would imply the security lives there when it doesn't.
+
+Two failure modes shaped this code, both found by testing rather than review:
+
+**Concurrent requests could silently sign a user out.** Supabase rotates the
+refresh token on every use, and Next.js middleware builds a fresh server client
+per request with no shared refresh lock. With `/api` inside the middleware
+matcher, a page load racing two in-flight API calls meant three clients
+attempting the same refresh — one wins, the others present an already-rotated
+token, and the library treats that as an invalid session and clears the cookie.
+`/api` is now excluded from the matcher; API routes read the session directly,
+which only refreshes when the token has genuinely expired.
+
+**The copilot routes were unauthenticated.** They spend money on every call, so
+anyone who found the deployed URL could run up the Anthropic bill. RLS is no
+help there — those routes never touch the database. They now require a session.
+
+Email confirmation is on, so `signUp` returns a user with no session and the UI
+shows a "check your inbox" state. `/auth/callback` handles both the PKCE
+(`?code=`) and older (`?token_hash=`) link shapes, because which one Supabase
+sends depends on project configuration and handling only one produces a
+confirmation link that silently fails for half of all setups.
+
 ## Running without an API key
 
 `getCopilot()` returns the Claude implementation when `ANTHROPIC_API_KEY` is
